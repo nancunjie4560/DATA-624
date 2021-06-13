@@ -1,0 +1,210 @@
+---
+title: "Week2HA7_KJ3"
+author: "Chunjie Nan"
+date: "6/12/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Chapter 7 Exponential Smoothing
+
+### 7.1 Simple Exponential Smoothing(SES)
+
+SES is good for no clear trend or seasonal pattern.
+
+
+```{r}
+library(fpp2)
+library(forecast)
+
+```
+```{r}
+oil
+oildata<-window(oil,start=1996)
+autoplot(oildata)+
+  ylab("oil(millions of tonnes")+xlab("Year")
+
+```
+
+Naive method: all forecasts for the future are equal to the last observed value of the series/the last observation has 100% of weight for the forecast.
+
+
+Average method: all future forecasts are equal to simple average of the observed data/all observed data are equally important.
+
+these Naive and Average methods are extremes.
+
+SES: more weights on the recent observation and less weight from the past.
+
+forecast:using weighted averages, weights decrease exponentially as observations come from further in the past-smallest weights are associated with the oldest obervations.
+
+Smoothing parameter α, where 0 ≤ α ≤ 1
+
+
+if α is small, relatively more weight is given for the past, and if α  is large, relatively more weight is given to the recent observations.
+
+
+### Weighted average form
+
+The forecast T+1 is equal to the weighted average between the most recent observation yt and the previous forecast of Yhat t. (weighted average of forecast today and real today value)
+yhatT+1 = αyt + (1-α)yhatt
+
+
+
+### Component form
+
+### Flat forecasts: all forecasts take the same value equal to the las level componet.(only for no trend and no seasonal)
+
+
+### Optimization
+
+The reliable and objective way to obtain values for the unknown parameters is to estimate them from the observed data.
+1.minimizing the sum of the squared residuals-SSE/Sum of the squared error
+
+
+Example:Oil Production
+```{r}
+oildata<-window(oil, start=1996)
+fc<-ses(oildata, h=5)
+round(accuracy(fc),2)
+autoplot(fc)+
+  autolayer(fitted(fc), series = "Fitted")+
+  ylab("Oil (Millions of tonnes)")+ xlab("Year")
+summary(fc)
+```
+
+
+### Holt's linear trend method
+allow the forecasting of data with a trend. This method involves a forecast equation and two smoothing equations (one for the level and one for the trend
+
+Example:Air Passangers
+```{r}
+ausair
+air<-window(ausair, start=1990)
+fc<-holt(air, h=5)
+fc
+```
+
+the smaller beta/parameter of trend, the slop hardly changes over time.
+
+### Dampled trend methods
+the Holt's linear method display a constant trend, increasing or decreasing.But, this method is tend to over-forecast, especially for longer forecast horizons.
+
+Gardner and Mckenzie introduced a parameter that dampens the trend to a flat line some time in the future. This is the most popular and successful methods.
+
+Example: Air Passangers
+
+```{r}
+fc<-holt(air, h=15)
+fc2<-holt(air, damped = T, phi = 0.9, h=15) #damping marapeter 0.9
+autoplot(air)+
+  autolayer(fc, series="Holt's method", PI= F)+
+  autolayer(fc2, series="Damped Holt's method", PI=F)+
+  ggtitle("Forecasts from Holt's method")+xlab("Year")+
+  ylab("Air passangers in Australia(millions")+
+  guides(color=guide_legend(title="Forecast"))
+
+```
+
+Example:Sheep in Asia
+```{r}
+livestock
+autoplot(livestock)+
+  xlab("Year")+ylab("Livestock,sheep in Asia(millions)")
+```
+
+use time series cross-validation to compare the forecast one-step forecast accuracy of 3 methods.
+
+```{r}
+e1<-tsCV(livestock, ses, h=1)#tsCV computes the forecast errors
+e2<-tsCV(livestock, holt, h=1)
+e3<-tsCV(livestock, holt, damped=T, h=1)
+
+
+# compare MSE: mean square error
+mean(e1^2,na.rm = T)
+mean(e2^2,na.rm = T)
+mean(e3^2,na.rm = T)
+
+
+
+#compare MAE: mean absolute error
+mean(abs(e1),na.rm = T)
+mean(abs(e2),na.rm = T)
+mean(abs(e3),na.rm = T)
+```
+
+Therefore, the Damped Holt's method is the best whether compare MAE or MSE.
+```{r}
+fc<-holt(livestock, damped=T)
+fc[["model"]]
+
+```
+beta/the trend parameter or slop is closed to zero. This means that the trend is not changing over the time. The value alpha is closed to one, it means the forecast is reacts strongly to each new observation.
+
+
+```{r}
+autoplot(fc)+
+  xlab("Year")+ylab("Livestrock, sheep in Asia in millions")+
+
+
+```
+
+
+
+### 7.3 Holt-Winter's seasonal method
+
+Holter-Winter's additive and multiplicative methods.
+
+Example:international tourist visitor nights in Australia.
+data from 1999 to 2015, forecast 2016 and2017
+```{r}
+austourists
+aust<-window(austourists, start=2005)
+fit1<-hw(aust, seasonal = "additive")
+fit2<-hw(aust, seasonal="multiplicative")
+autoplot(aust)+   #original data plot
+  autolayer(fit1, series="HW additive forecasts", PI=FALSE)+  #seasonal of additive method
+  autolayer(fit2, series="HW multiplicative forecasts", PI=FALSE)+# seasonal of multiplicative
+  xlab("Year")+
+  ylab("Visitor nights in millions")+
+  ggtitle("International visitors nights in Australia")+
+  guides(col=guide_legend(title="Forecast"))
+
+round(accuracy(fit1),3)
+round(accuracy(fit2),3)
+
+```
+compare the RMSE/Root mean square error, the multiplicative method has smaller RMSE and it fits the data better.
+
+
+### Holter-Winter's damped method
+Exmaple: Holt-Winters method with daily data
+
+```{r}
+hyndsight # 
+fc<-hw(subset())
+
+```
+```{r}
+fc<-hw(subset(hyndsight, end = length(hyndsight)-35), dampted=T, seasonal="multiplicative", h=35)
+#so, we subset the hyndsight data and remove the last 35 observation from original data.
+#use the without last 35 observation data to forecast the 35 observations with damped seasonal.
+
+autoplot(hyndsight)+
+  autolayer(fc, series = "HW multiplicative damped", PI=F)+
+  guides(col=guide_legend(title="Daily forecasts"))
+
+```
+
+
+### 7.4 A taxonomy of exponential smoothing
+
+methods
+
+
+
