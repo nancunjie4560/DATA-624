@@ -1,0 +1,159 @@
+---
+title: "Week2_7.1_7.2_7.3_Chunjie_Nan"
+author: "Chunjie Nan"
+date: "6/12/2021"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+7.1. Consider the pigs series — the number of pigs slaughtered in Victoria each month.
+```{r}
+library(forecast)
+library(fpp2)
+```
+
+This is Monthly total number of pigs slaughtered in Victoria, Australia from Jan 1980 to Aug 1995.
+
+```{r}
+autoplot(pigs)+
+  xlab("Year")+
+  ylab("Number of pigs slaughtered")+
+  ggtitle("Monthly total number of pigs slaughtered in Victoria")
+
+```
+
+
+
+
+
+a. Use the ses() function in R to find the optimal values of α and ℓ0, and
+generate forecasts for the next four months.
+
+
+
+
+```{r}
+
+fc_pigs<-ses(pigs, h=4)
+summary(fc_pigs)
+round(accuracy(fc_pigs),3)
+```
+
+
+With summary of simple smoothing exponential smoothing, alpha = 0.2971, and initial states =77260.0561
+The forecast from September 1995 to December 1995, the forecast gives flat number of 98816.41 pigs.
+
+
+
+
+
+b. Compute a 95% prediction interval for the first forecast using y ± 1.96s
+where is the standard deviation of the residuals. Compare your interval
+with the interval produced by R.
+
+
+
+```{r}
+fc_pigs
+
+
+sdr<-sd(fc_pigs$residuals)*1.96
+manual_lo95<-fc_pigs$mean[1] - sdr
+manual_hi95<-fc_pigs$mean[1] + sdr
+lo_hi95<-c(manual_lo95, manual_hi95)
+lo_hi95
+autoplot(fc_pigs)+ 
+  autolayer(fc_pigs$fitted, series = "Fitted",PI=F)+
+  ylab("Number of pigs slaughtered")+
+  xlab("Year")
+ 
+```
+The manual computation and produced by R produced very similar results.
+
+
+
+
+7.2. Write your own function to implement simple exponential smoothing. The
+function should take arguments y (the time series), alpha (the
+smoothing parameter α) and level (the initial levelℓ0 ). It should return
+the forecast of the next observation in the series. Does it give the same
+forecast as ses() ?
+
+```{r}
+manual_ses <- function(y, alpha, initiate){
+  y_hat <- initiate
+  for(index in 1:length(y)){
+   y_hat <- alpha*y[index] + (1 - alpha)*y_hat 
+  }
+  cat("manual calculation: ",
+      as.character(y_hat),
+      sep = "\n")
+}
+
+
+
+summary(fc_pigs)
+
+manual_ses(pigs,0.2971,77260.0561)
+
+```
+
+
+
+after making function, use summary(pigs) find out alpha and initial level, and plug into the manual function. The calculation result is almost the same with the result from ses().
+
+
+7.3. Modify your function from the previous exercise to return the sum of
+squared errors rather than the forecast of the next observation. Then use the optim() function to find the optimal values of α and ℓ0 . Do you get the same values as the ses() function?
+
+
+
+
+
+```{r}
+fc_ausbeer<-ses(ausbeer)
+
+SES <- function(pars = c(alpha, l0), y){
+  error <- 0
+  SSE <- 0
+  alpha <- pars[1]
+  l0 <- pars[2]
+  y_hat <- l0
+  
+  for(index in 1:length(y)){
+    error <- y[index] - y_hat
+    SSE <- SSE + error^2
+    
+    y_hat <- alpha*y[index] + (1 - alpha)*y_hat 
+  }
+  
+  return(SSE)
+}
+
+opt_pigs <- optim(par = c(0.5, pigs[1]), y = pigs, fn = SES)
+as.character(opt_pigs$par[1]) #alpha = 0.299
+as.character(opt_pigs$par[2]) # initial = 76379.365
+summary(fc_pigs) # alpha = 0.297, initial = 77260.056
+
+opt_ausbeer <- optim(par = c(0.5, ausbeer[1]), y = ausbeer, fn = SES)
+as.character(opt_ausbeer$par[1]) # alpha = 0.148
+as.character(opt_ausbeer$par[2]) # initial = 259.658
+summary(fc_ausbeer) # alpha = 0.149, initial = 259.6592 
+```
+
+
+According to the alpha and initial as above, the alpha and initial are almost the same to the one from ses function except for the ℓ0 from pigs data, but they are still closed to each other.
+
+
+
+
+
+
